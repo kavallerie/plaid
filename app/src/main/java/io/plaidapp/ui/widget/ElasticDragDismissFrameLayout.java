@@ -16,10 +16,15 @@
 
 package io.plaidapp.ui.widget;
 
+import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Color;
+import android.os.Build;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -62,14 +67,19 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
     }
 
     public ElasticDragDismissFrameLayout(Context context, AttributeSet attrs,
-                                         int defStyleAttr) {
-        this(context, attrs, defStyleAttr, 0);
+            int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+        init(attrs);
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public ElasticDragDismissFrameLayout(Context context, AttributeSet attrs,
-                                         int defStyleAttr, int defStyleRes) {
+            int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
+        init(attrs);
+    }
 
+    private void init(AttributeSet attrs) {
         final TypedArray a = getContext().obtainStyledAttributes(
                 attrs, R.styleable.ElasticDragDismissFrameLayout, 0, 0);
 
@@ -106,7 +116,7 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
          * @param rawOffsetPixels     The raw distance the user has dragged
          */
         void onDrag(float elasticOffset, float elasticOffsetPixels,
-                    float rawOffset, float rawOffsetPixels) { }
+                float rawOffset, float rawOffsetPixels) { }
 
         /**
          * Called when dragging is released and has exceeded the threshold dismiss distance.
@@ -117,7 +127,7 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
 
     @Override
     public boolean onStartNestedScroll(View child, View target, int nestedScrollAxes) {
-        return (nestedScrollAxes & View.SCROLL_AXIS_VERTICAL) != 0;
+        return (nestedScrollAxes & ViewCompat.SCROLL_AXIS_VERTICAL) != 0;
     }
 
     @Override
@@ -131,7 +141,7 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
 
     @Override
     public void onNestedScroll(View target, int dxConsumed, int dyConsumed,
-                               int dxUnconsumed, int dyUnconsumed) {
+            int dxUnconsumed, int dyUnconsumed) {
         dragScale(dyUnconsumed);
     }
 
@@ -145,7 +155,7 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
                     .scaleX(1f)
                     .scaleY(1f)
                     .setDuration(200L)
-                    .setInterpolator(AnimUtils.getFastOutSlowInInterpolator(getContext()))
+                    .setInterpolator(AnimUtils.getFastOutSlowInInterpolator())
                     .setListener(null)
                     .start();
             totalDrag = 0;
@@ -225,7 +235,7 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
     }
 
     private void dispatchDragCallback(float elasticOffset, float elasticOffsetPixels,
-                                      float rawOffset, float rawOffsetPixels) {
+            float rawOffset, float rawOffsetPixels) {
         if (callbacks != null && !callbacks.isEmpty()) {
             for (ElasticDragDismissCallback callback : callbacks) {
                 callback.onDrag(elasticOffset, elasticOffsetPixels,
@@ -247,8 +257,10 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
      * navigation bar) whilst elastic drags are performed and
      * {@link Activity#finishAfterTransition() finishes} the activity when drag dismissed.
      */
+    @SuppressLint("NewApi")
     public static class SystemChromeFader extends ElasticDragDismissCallback {
 
+        private static final boolean SHOULD_OP = Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP;
         private final Activity activity;
         private final int statusBarAlpha;
         private final int navBarAlpha;
@@ -256,34 +268,41 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
 
         public SystemChromeFader(Activity activity) {
             this.activity = activity;
-            statusBarAlpha = Color.alpha(activity.getWindow().getStatusBarColor());
-            navBarAlpha = Color.alpha(activity.getWindow().getNavigationBarColor());
+            if (SHOULD_OP) {
+                statusBarAlpha = Color.alpha(activity.getWindow().getStatusBarColor());
+                navBarAlpha = Color.alpha(activity.getWindow().getNavigationBarColor());
+            } else {
+                statusBarAlpha = 0;
+                navBarAlpha = 0;
+            }
             fadeNavBar = ViewUtils.isNavBarOnBottom(activity);
         }
 
         @Override
         public void onDrag(float elasticOffset, float elasticOffsetPixels,
-                           float rawOffset, float rawOffsetPixels) {
-            if (elasticOffsetPixels > 0) {
-                // dragging downward, fade the status bar in proportion
-                activity.getWindow().setStatusBarColor(ColorUtils.modifyAlpha(activity.getWindow()
-                        .getStatusBarColor(), (int) ((1f - rawOffset) * statusBarAlpha)));
-            } else if (elasticOffsetPixels == 0) {
-                // reset
-                activity.getWindow().setStatusBarColor(ColorUtils.modifyAlpha(
-                        activity.getWindow().getStatusBarColor(), statusBarAlpha));
-                activity.getWindow().setNavigationBarColor(ColorUtils.modifyAlpha(
-                        activity.getWindow().getNavigationBarColor(), navBarAlpha));
-            } else if (fadeNavBar) {
-                // dragging upward, fade the navigation bar in proportion
-                activity.getWindow().setNavigationBarColor(
-                        ColorUtils.modifyAlpha(activity.getWindow().getNavigationBarColor(),
-                                (int) ((1f - rawOffset) * navBarAlpha)));
+                float rawOffset, float rawOffsetPixels) {
+            if (SHOULD_OP) {
+                if (elasticOffsetPixels > 0) {
+                    // dragging downward, fade the status bar in proportion
+                    activity.getWindow().setStatusBarColor(ColorUtils.modifyAlpha(activity.getWindow()
+                            .getStatusBarColor(), (int) ((1f - rawOffset) * statusBarAlpha)));
+                } else if (elasticOffsetPixels == 0) {
+                    // reset
+                    activity.getWindow().setStatusBarColor(ColorUtils.modifyAlpha(
+                            activity.getWindow().getStatusBarColor(), statusBarAlpha));
+                    activity.getWindow().setNavigationBarColor(ColorUtils.modifyAlpha(
+                            activity.getWindow().getNavigationBarColor(), navBarAlpha));
+                } else if (fadeNavBar) {
+                    // dragging upward, fade the navigation bar in proportion
+                    activity.getWindow().setNavigationBarColor(
+                            ColorUtils.modifyAlpha(activity.getWindow().getNavigationBarColor(),
+                                    (int) ((1f - rawOffset) * navBarAlpha)));
+                }
             }
         }
 
         public void onDragDismissed() {
-            activity.finishAfterTransition();
+            ActivityCompat.finishAfterTransition(activity);
         }
     }
 

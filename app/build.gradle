@@ -28,7 +28,7 @@ android {
 
     defaultConfig {
         applicationId "io.plaidapp"
-        minSdkVersion 21
+        minSdkVersion 15
         targetSdkVersion 23
         versionCode gitCommitCount
         versionName gitTag
@@ -44,6 +44,8 @@ android {
                 "DESIGNER_NEWS_CLIENT_SECRET", "\"${designer_news_client_secret}\""
         buildConfigField "String",
                 "PROCUCT_HUNT_DEVELOPER_TOKEN", "\"${product_hunt_developer_token}\""
+
+        vectorDrawables.useSupportLibrary = true
     }
     buildTypes {
         release {
