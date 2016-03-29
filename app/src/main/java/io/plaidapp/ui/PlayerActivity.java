@@ -37,7 +37,6 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
-import com.google.gson.GsonBuilder;
 
 import java.text.NumberFormat;
 import java.util.List;
@@ -48,9 +47,8 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import io.plaidapp.R;
 import io.plaidapp.data.PlaidItem;
-import io.plaidapp.data.api.AuthInterceptor;
-import io.plaidapp.data.api.dribbble.DribbbleService;
 import io.plaidapp.data.api.dribbble.PlayerShotsDataManager;
+import io.plaidapp.data.api.dribbble.model.Shot;
 import io.plaidapp.data.api.dribbble.model.User;
 import io.plaidapp.data.pocket.PocketUtils;
 import io.plaidapp.data.prefs.DribbblePrefs;
@@ -60,11 +58,9 @@ import io.plaidapp.ui.widget.ElasticDragDismissFrameLayout;
 import io.plaidapp.util.DribbbleUtils;
 import io.plaidapp.util.ViewUtils;
 import io.plaidapp.util.glide.CircleTransform;
-import retrofit.Callback;
-import retrofit.RestAdapter;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
-import retrofit.converter.GsonConverter;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 /**
  * A screen displaying a player's details and their shots.
@@ -156,6 +152,12 @@ public class PlayerActivity extends Activity {
         super.onPause();
     }
 
+    @Override
+    protected void onDestroy() {
+        dataManager.cancelLoading();
+        super.onDestroy();
+    }
+
     private void bindPlayer() {
         final Resources res = getResources();
         final NumberFormat nf = NumberFormat.getInstance();
@@ -185,7 +187,7 @@ public class PlayerActivity extends Activity {
         // load the users shots
         dataManager = new PlayerShotsDataManager(this, player) {
             @Override
-            public void onDataLoaded(List<? extends PlaidItem> data) {
+            public void onDataLoaded(List<Shot> data) {
                 if (data != null && data.size() > 0) {
                     if (adapter.getDataItemCount() == 0) {
                         loading.setVisibility(View.GONE);
@@ -245,21 +247,18 @@ public class PlayerActivity extends Activity {
                 ViewUtils.setPaddingTop(shots, playerDescription.getHeight() - follow.getHeight()
                         - ((ViewGroup.MarginLayoutParams) follow.getLayoutParams()).bottomMargin);
             } else {
-                dataManager.getDribbbleApi().following(player.id, new Callback<Void>() {
+                final Call<Void> followingCall = dataManager.getDribbbleApi().following(player.id);
+                followingCall.enqueue(new Callback<Void>() {
                     @Override
-                    public void success(Void voyd, Response response) {
-                        following = true;
+                    public void onResponse(Call<Void> call, Response<Void> response) {
+                        following = response.isSuccessful();
+                        if (!following) return;
                         TransitionManager.beginDelayedTransition(playerDescription);
                         follow.setText(R.string.following);
                         follow.setActivated(true);
                     }
 
-                    @Override
-                    public void failure(RetrofitError error) {
-                        if (error.getResponse() != null && error.getResponse().getStatus() == 404) {
-                            following = false;
-                        }
-                    }
+                    @Override public void onFailure(Call<Void> call, Throwable t) { }
                 });
             }
         }
@@ -272,39 +271,29 @@ public class PlayerActivity extends Activity {
     }
 
     private void loadPlayer(long userId) {
-        getDribbbleApi().getUser(userId, new Callback<User>() {
+        final Call<User> userCall = DribbblePrefs.get(this).getApi().getUser(userId);
+        userCall.enqueue(new Callback<User>() {
             @Override
-            public void success(User user, Response response) {
-                player = user;
+            public void onResponse(Call<User> call, Response<User> response) {
+                player = response.body();
                 bindPlayer();
             }
 
-            @Override public void failure(RetrofitError error) { }
+            @Override public void onFailure(Call<User> call, Throwable t) { }
         });
     }
 
     private void loadPlayer(String username) {
-        getDribbbleApi().getUser(username, new Callback<User>() {
+        final Call<User> userCall = DribbblePrefs.get(this).getApi().getUser(username);
+        userCall.enqueue(new Callback<User>() {
             @Override
-            public void success(User user, Response response) {
-                player = user;
+            public void onResponse(Call<User> call, Response<User> response) {
+                player = response.body();
                 bindPlayer();
             }
 
-            @Override public void failure(RetrofitError error) { }
+            @Override public void onFailure(Call<User> call, Throwable t) { }
         });
-    }
-
-    private DribbbleService getDribbbleApi() {
-        return new RestAdapter.Builder()
-                .setEndpoint(DribbbleService.ENDPOINT)
-                .setConverter(new GsonConverter(new GsonBuilder()
-                        .setDateFormat(DribbbleService.DATE_FORMAT)
-                        .create()))
-                .setRequestInterceptor(new AuthInterceptor(DribbblePrefs.get(this)
-                        .getAccessToken()))
-                .build()
-                .create((DribbbleService.class));
     }
 
     private void setFollowerCount(int count) {
@@ -320,10 +309,11 @@ public class PlayerActivity extends Activity {
     /* package */ void follow() {
         if (DribbblePrefs.get(this).isLoggedIn()) {
             if (following != null && following) {
-                dataManager.getDribbbleApi().unfollow(player.id, new Callback<Void>() {
-                    @Override public void success(Void voyd, Response response) { }
+                final Call<Void> unfollowCall = dataManager.getDribbbleApi().unfollow(player.id);
+                unfollowCall.enqueue(new Callback<Void>() {
+                    @Override public void onResponse(Call<Void> call, Response<Void> response) { }
 
-                    @Override public void failure(RetrofitError error) { }
+                    @Override public void onFailure(Call<Void> call, Throwable t) { }
                 });
                 following = false;
                 TransitionManager.beginDelayedTransition(playerDescription);
@@ -331,10 +321,11 @@ public class PlayerActivity extends Activity {
                 follow.setActivated(false);
                 setFollowerCount(followerCount - 1);
             } else {
-                dataManager.getDribbbleApi().follow(player.id, "", new Callback<Void>() {
-                    @Override public void success(Void voyd, Response response) { }
+                final Call<Void> followCall = dataManager.getDribbbleApi().follow(player.id);
+                followCall.enqueue(new Callback<Void>() {
+                    @Override public void onResponse(Call<Void> call, Response<Void> response) { }
 
-                    @Override public void failure(RetrofitError error) { }
+                    @Override public void onFailure(Call<Void> call, Throwable t) { }
                 });
                 following = true;
                 TransitionManager.beginDelayedTransition(playerDescription);

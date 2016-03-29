@@ -32,8 +32,8 @@ import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import io.plaidapp.util.AnimUtils;
 import io.plaidapp.util.MathUtils;
@@ -93,12 +93,12 @@ public class BottomSheet extends FrameLayout {
      */
     public static abstract class Callbacks {
         public void onSheetDismissed() { }
-        public void onSheetPositionChanged(int sheetTop) { }
+        public void onSheetPositionChanged(int sheetTop, boolean userInteracted) { }
     }
 
     public void registerCallback(Callbacks callback) {
         if (callbacks == null) {
-            callbacks = new ArrayList<>();
+            callbacks = new CopyOnWriteArrayList<>();
         }
         callbacks.add(callback);
     }
@@ -241,7 +241,12 @@ public class BottomSheet extends FrameLayout {
 
     private void animateSettle(int initialOffset, final int targetOffset, long duration) {
         if (settling) return;
-        if (sheetOffsetHelper.getTopAndBottomOffset() == targetOffset) return;
+        if (sheetOffsetHelper.getTopAndBottomOffset() == targetOffset) {
+          if (targetOffset >= dismissOffset) {
+              dispatchDismissCallback();
+          }
+          return;
+        }
 
         settling = true;
         final ObjectAnimator settleAnim = ObjectAnimator.ofInt(sheetOffsetHelper,
@@ -264,7 +269,9 @@ public class BottomSheet extends FrameLayout {
             settleAnim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
-                    dispatchPositionChangedCallback();
+                    if (animation.getAnimatedFraction() > 0f) {
+                        dispatchPositionChangedCallback();
+                    }
                 }
             });
         }
@@ -371,7 +378,7 @@ public class BottomSheet extends FrameLayout {
     private void dispatchPositionChangedCallback() {
         if (callbacks != null && !callbacks.isEmpty()) {
             for (Callbacks callback : callbacks) {
-                callback.onSheetPositionChanged(sheet.getTop());
+                callback.onSheetPositionChanged(sheet.getTop(), hasInteractedWithSheet);
             }
         }
     }
