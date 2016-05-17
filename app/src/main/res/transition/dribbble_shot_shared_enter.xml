@@ -15,19 +15,25 @@
   limitations under the License.
   -->
 
-<transitionSet xmlns:android="http://schemas.android.com/apk/res/android"
-    android:duration="300"
+<transitionSet
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:interpolator="@android:interpolator/fast_out_slow_in"
     android:transitionOrdering="together">
 
-    <changeBounds>
+    <transitionSet>
+        <changeBounds android:duration="300" />
+        <transition
+            class="io.plaidapp.ui.transitions.LiftOff"
+            android:duration="400"
+            android:elevation="@dimen/touch_raise" />
         <targets>
             <target android:targetId="@id/container" />
         </targets>
-    </changeBounds>
+    </transitionSet>
 
     <transition
-        class="io.plaidapp.ui.transitions.ShotSharedEnter">
+        class="io.plaidapp.ui.transitions.ShotSharedEnter"
+        android:duration="300">
         <targets>
             <target android:targetId="@id/shot" />
         </targets>

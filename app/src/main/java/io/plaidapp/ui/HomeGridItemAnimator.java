@@ -24,19 +24,20 @@ import android.animation.PropertyValuesHolder;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.RecyclerView;
-import android.transition.ArcMotion;
 import android.view.View;
 import android.view.ViewGroup;
 
 import java.util.List;
 
+import io.plaidapp.ui.recyclerview.SlideInItemAnimator;
+import io.plaidapp.ui.transitions.GravityArcMotion;
 import io.plaidapp.util.AnimUtils;
 import io.plaidapp.util.ViewUtils;
 
 /**
  * An extension to {@link DefaultItemAnimator} for running animations specific to our home grid.
  */
-public class HomeGridItemAnimator extends DefaultItemAnimator {
+public class HomeGridItemAnimator extends SlideInItemAnimator {
 
     public static final int ANIMATE_ADD_POCKET = 7;
 
@@ -79,7 +80,7 @@ public class HomeGridItemAnimator extends DefaultItemAnimator {
                     (holder.itemView.getWidth() - holder.pocket.getWidth()) / 2;
             final int translatedTop =
                     initialTop - ((holder.itemView.getHeight() - holder.pocket.getHeight()) / 2);
-            final ArcMotion arc = new ArcMotion();
+            final GravityArcMotion arc = new GravityArcMotion();
 
             // animate the title & pocket icon up, scale the pocket icon up
             Animator titleMoveFadeOut = ObjectAnimator.ofPropertyValuesHolder(holder.title,

@@ -24,20 +24,15 @@ import android.animation.ValueAnimator;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.ActivityOptions;
-import android.app.SharedElementCallback;
 import android.app.assist.AssistContent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Matrix;
-import android.graphics.RectF;
 import android.graphics.drawable.AnimatedVectorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Parcelable;
 import android.support.customtabs.CustomTabsIntent;
 import android.support.design.widget.Snackbar;
 import android.support.v4.content.ContextCompat;
@@ -79,8 +74,8 @@ import com.bumptech.glide.request.target.Target;
 import java.text.NumberFormat;
 import java.util.List;
 
-import butterknife.Bind;
 import butterknife.BindDimen;
+import butterknife.BindView;
 import butterknife.ButterKnife;
 import io.plaidapp.R;
 import io.plaidapp.data.api.dribbble.DribbbleService;
@@ -88,7 +83,7 @@ import io.plaidapp.data.api.dribbble.model.Comment;
 import io.plaidapp.data.api.dribbble.model.Like;
 import io.plaidapp.data.api.dribbble.model.Shot;
 import io.plaidapp.data.prefs.DribbblePrefs;
-import io.plaidapp.ui.transitions.FabDialogMorphSetup;
+import io.plaidapp.ui.transitions.FabTransform;
 import io.plaidapp.ui.widget.AuthorTextView;
 import io.plaidapp.ui.widget.CheckableImageButton;
 import io.plaidapp.ui.widget.ElasticDragDismissFrameLayout;
@@ -119,10 +114,10 @@ public class DribbbleShot extends Activity {
     private static final int RC_LOGIN_COMMENT = 1;
     private static final float SCRIM_ADJUSTMENT = 0.075f;
 
-    @Bind(R.id.draggable_frame) ElasticDragDismissFrameLayout draggableFrame;
-    @Bind(R.id.back) ImageButton back;
-    @Bind(R.id.shot) ParallaxScrimageView imageView;
-    @Bind(R.id.fab_heart) FABToggle fab;
+    @BindView(R.id.draggable_frame) ElasticDragDismissFrameLayout draggableFrame;
+    @BindView(R.id.back) ImageButton back;
+    @BindView(R.id.shot) ParallaxScrimageView imageView;
+    @BindView(R.id.fab_heart) FABToggle fab;
     private View shotSpacer;
     private View title;
     private View description;
@@ -155,7 +150,6 @@ public class DribbbleShot extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dribbble_shot);
         dribbblePrefs = DribbblePrefs.get(this);
-        setExitSharedElementCallback(fabLoginSharedElementCallback);
         getWindow().getSharedElementReturnTransition().addListener(shotReturnHomeListener);
         circleTransform = new CircleTransform(this);
 
@@ -353,7 +347,7 @@ public class DribbbleShot extends Activity {
             }
         });
         if (shot.user != null) {
-            playerName.setText("–" + shot.user.name);
+            playerName.setText(shot.user.name.toLowerCase());
             Glide.with(this)
                     .load(shot.user.getHighQualityAvatarUrl())
                     .transform(circleTransform)
@@ -383,7 +377,8 @@ public class DribbbleShot extends Activity {
             if (shot.created_at != null) {
                 shotTimeAgo.setText(DateUtils.getRelativeTimeSpanString(shot.created_at.getTime(),
                         System.currentTimeMillis(),
-                        DateUtils.SECOND_IN_MILLIS));
+                        DateUtils.SECOND_IN_MILLIS)
+                        .toString().toLowerCase());
             }
         } else {
             playerName.setVisibility(View.GONE);
@@ -588,8 +583,8 @@ public class DribbbleShot extends Activity {
                 doLike();
             } else {
                 final Intent login = new Intent(DribbbleShot.this, DribbbleLogin.class);
-                login.putExtra(FabDialogMorphSetup.EXTRA_SHARED_ELEMENT_START_COLOR,
-                        ContextCompat.getColor(DribbbleShot.this, R.color.dribbble));
+                FabTransform.addExtras(login, ContextCompat.getColor(DribbbleShot.this, R
+                        .color.dribbble), R.drawable.ic_heart_empty_56dp);
                 ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation
                         (DribbbleShot.this, fab, getString(R.string.transition_dribbble_login));
                 startActivityForResult(login, RC_LOGIN_LIKE, options.toBundle());
@@ -597,25 +592,8 @@ public class DribbbleShot extends Activity {
         }
     };
 
-    private SharedElementCallback fabLoginSharedElementCallback = new SharedElementCallback() {
-        @Override
-        public Parcelable onCaptureSharedElementSnapshot(View sharedElement,
-                                                         Matrix viewToGlobalMatrix,
-                                                         RectF screenBounds) {
-            // store a snapshot of the fab to fade out when morphing to the login dialog
-            int bitmapWidth = Math.round(screenBounds.width());
-            int bitmapHeight = Math.round(screenBounds.height());
-            Bitmap bitmap = null;
-            if (bitmapWidth > 0 && bitmapHeight > 0) {
-                bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888);
-                sharedElement.draw(new Canvas(bitmap));
-            }
-            return bitmap;
-        }
-    };
-
-    private Transition.TransitionListener shotReturnHomeListener = new AnimUtils
-            .TransitionListenerAdapter() {
+    private Transition.TransitionListener shotReturnHomeListener =
+            new AnimUtils.TransitionListenerAdapter() {
         @Override
         public void onTransitionStart(Transition transition) {
             super.onTransitionStart(transition);
@@ -820,8 +798,8 @@ public class DribbbleShot extends Activity {
             });
         } else {
             Intent login = new Intent(DribbbleShot.this, DribbbleLogin.class);
-            login.putExtra(FabDialogMorphSetup.EXTRA_SHARED_ELEMENT_START_COLOR, ContextCompat.getColor
-                    (this, R.color.background_light));
+            FabTransform.addExtras(login, ContextCompat.getColor(DribbbleShot.this, R
+                    .color.background_light), R.drawable.ic_comment_add);
             ActivityOptions options =
                     ActivityOptions.makeSceneTransitionAnimation(DribbbleShot.this, postComment,
                             getString(R.string.transition_dribbble_login));
@@ -928,12 +906,13 @@ public class DribbbleShot extends Activity {
                     startActivity(player, options.toBundle());
                 }
             });
-            author.setText(comment.user.name);
+            author.setText(comment.user.name.toLowerCase());
             author.setOriginalPoster(isOP(comment.user.id));
             timeAgo.setText(comment.created_at == null ? "" :
                     DateUtils.getRelativeTimeSpanString(comment.created_at.getTime(),
                             System.currentTimeMillis(),
-                            DateUtils.SECOND_IN_MILLIS));
+                            DateUtils.SECOND_IN_MILLIS)
+                            .toString().toLowerCase());
             HtmlUtils.setTextWithNiceLinks(commentBody, comment.getParsedBody(commentBody));
 
             view.setActivated(position == expandedCommentPosition);

@@ -16,14 +16,11 @@
 
 package io.plaidapp.ui;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.AnimatedVectorDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
@@ -49,8 +46,8 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import butterknife.Bind;
 import butterknife.BindDimen;
+import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import io.plaidapp.R;
@@ -64,12 +61,11 @@ import io.plaidapp.data.api.dribbble.model.PlayerListable;
 import io.plaidapp.data.api.dribbble.model.Shot;
 import io.plaidapp.data.api.dribbble.model.User;
 import io.plaidapp.ui.recyclerview.InfiniteScrollListener;
+import io.plaidapp.ui.recyclerview.SlideInItemAnimator;
 import io.plaidapp.ui.widget.BottomSheet;
 import io.plaidapp.util.DribbbleUtils;
 import io.plaidapp.util.glide.CircleTransform;
 
-import static io.plaidapp.util.AnimUtils.getFastOutLinearInInterpolator;
-import static io.plaidapp.util.AnimUtils.getFastOutSlowInInterpolator;
 import static io.plaidapp.util.AnimUtils.getLinearOutSlowInInterpolator;
 
 public class PlayerSheet extends Activity {
@@ -89,12 +85,12 @@ public class PlayerSheet extends Activity {
     })
     @interface PlayerSheetMode { }
 
-    @Bind(R.id.bottom_sheet) BottomSheet bottomSheet;
-    @Bind(R.id.bottom_sheet_content) ViewGroup content;
-    @Bind(R.id.title_bar) ViewGroup titleBar;
-    @Bind(R.id.close) ImageView close;
-    @Bind(R.id.title) TextView title;
-    @Bind(R.id.player_list) RecyclerView playerList;
+    @BindView(R.id.bottom_sheet) BottomSheet bottomSheet;
+    @BindView(R.id.bottom_sheet_content) ViewGroup content;
+    @BindView(R.id.title_bar) ViewGroup titleBar;
+    @BindView(R.id.close) ImageView close;
+    @BindView(R.id.title) TextView title;
+    @BindView(R.id.player_list) RecyclerView playerList;
     @BindDimen(R.dimen.large_avatar_size) int largeAvatarSize;
     private @Nullable Shot shot;
     private @Nullable User player;
@@ -185,6 +181,7 @@ public class PlayerSheet extends Activity {
 
         layoutManager = new LinearLayoutManager(this);
         playerList.setLayoutManager(layoutManager);
+        playerList.setItemAnimator(new SlideInItemAnimator());
         adapter = new PlayerAdapter(this);
         dataManager.registerCallback(adapter);
         playerList.setAdapter(adapter);
@@ -300,7 +297,7 @@ public class PlayerSheet extends Activity {
                     .placeholder(R.drawable.avatar_placeholder)
                     .override(largeAvatarSize, largeAvatarSize)
                     .into(holder.playerAvatar);
-            holder.playerName.setText(player.getPlayer().name);
+            holder.playerName.setText(player.getPlayer().name.toLowerCase());
             if (!TextUtils.isEmpty(player.getPlayer().bio)) {
                 DribbbleUtils.parseAndSetText(holder.playerBio, player.getPlayer().bio);
             } else if (!TextUtils.isEmpty(player.getPlayer().location)) {
@@ -309,7 +306,8 @@ public class PlayerSheet extends Activity {
             holder.timeAgo.setText(
                     DateUtils.getRelativeTimeSpanString(player.getDateCreated().getTime(),
                             System.currentTimeMillis(),
-                            DateUtils.SECOND_IN_MILLIS));
+                            DateUtils.SECOND_IN_MILLIS)
+                            .toString().toLowerCase());
         }
 
         @Override
@@ -366,10 +364,10 @@ public class PlayerSheet extends Activity {
 
     /* package */ static class PlayerViewHolder extends RecyclerView.ViewHolder {
 
-        @Bind(R.id.player_avatar) ImageView playerAvatar;
-        @Bind(R.id.player_name) TextView playerName;
-        @Bind(R.id.player_bio) TextView playerBio;
-        @Bind(R.id.time_ago) TextView timeAgo;
+        @BindView(R.id.player_avatar) ImageView playerAvatar;
+        @BindView(R.id.player_name) TextView playerName;
+        @BindView(R.id.player_bio) TextView playerBio;
+        @BindView(R.id.time_ago) TextView timeAgo;
 
         public PlayerViewHolder(View itemView) {
             super(itemView);

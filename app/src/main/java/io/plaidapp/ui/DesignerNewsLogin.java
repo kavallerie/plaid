@@ -60,7 +60,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import butterknife.Bind;
+import butterknife.BindView;
 import butterknife.ButterKnife;
 import io.plaidapp.BuildConfig;
 import io.plaidapp.R;
@@ -68,7 +68,8 @@ import io.plaidapp.data.api.designernews.model.AccessToken;
 import io.plaidapp.data.api.designernews.model.User;
 import io.plaidapp.data.api.designernews.model.UserResponse;
 import io.plaidapp.data.prefs.DesignerNewsPrefs;
-import io.plaidapp.ui.transitions.FabDialogMorphSetup;
+import io.plaidapp.ui.transitions.FabTransform;
+import io.plaidapp.ui.transitions.MorphTransform;
 import io.plaidapp.util.AnimUtils;
 import io.plaidapp.util.ScrimUtil;
 import io.plaidapp.util.glide.CircleTransform;
@@ -81,17 +82,17 @@ public class DesignerNewsLogin extends Activity {
     private static final int PERMISSIONS_REQUEST_GET_ACCOUNTS = 0;
 
     boolean isDismissing = false;
-    @Bind(R.id.container) ViewGroup container;
-    @Bind(R.id.dialog_title) TextView title;
-    @Bind(R.id.username_float_label) TextInputLayout usernameLabel;
-    @Bind(R.id.username) AutoCompleteTextView username;
-    @Bind(R.id.permission_primer) CheckBox permissionPrimer;
-    @Bind(R.id.password_float_label) TextInputLayout passwordLabel;
-    @Bind(R.id.password) EditText password;
-    @Bind(R.id.actions_container) FrameLayout actionsContainer;
-    @Bind(R.id.signup) Button signup;
-    @Bind(R.id.login) Button login;
-    @Bind(R.id.loading) ProgressBar loading;
+    @BindView(R.id.container) ViewGroup container;
+    @BindView(R.id.dialog_title) TextView title;
+    @BindView(R.id.username_float_label) TextInputLayout usernameLabel;
+    @BindView(R.id.username) AutoCompleteTextView username;
+    @BindView(R.id.permission_primer) CheckBox permissionPrimer;
+    @BindView(R.id.password_float_label) TextInputLayout passwordLabel;
+    @BindView(R.id.password) EditText password;
+    @BindView(R.id.actions_container) FrameLayout actionsContainer;
+    @BindView(R.id.signup) Button signup;
+    @BindView(R.id.login) Button login;
+    @BindView(R.id.loading) ProgressBar loading;
     private DesignerNewsPrefs designerNewsPrefs;
     private boolean shouldPromptForPermission = false;
 
@@ -100,8 +101,11 @@ public class DesignerNewsLogin extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_designer_news_login);
         ButterKnife.bind(this);
-        FabDialogMorphSetup.setupSharedEelementTransitions(this, container,
-                getResources().getDimensionPixelSize(R.dimen.dialog_corners));
+        if (!FabTransform.setup(this, container)) {
+            MorphTransform.setup(this, container,
+                    ContextCompat.getColor(this, R.color.background_light),
+                    getResources().getDimensionPixelSize(R.dimen.dialog_corners));
+        }
         if (getWindow().getSharedElementEnterTransition() != null) {
             getWindow().getSharedElementEnterTransition().addListener(new AnimUtils
                     .TransitionListenerAdapter() {
@@ -300,7 +304,7 @@ public class DesignerNewsLogin extends Activity {
                 final Toast confirmLogin = new Toast(getApplicationContext());
                 final View v = LayoutInflater.from(DesignerNewsLogin.this).inflate(R.layout
                         .toast_logged_in_confirmation, null, false);
-                ((TextView) v.findViewById(R.id.name)).setText(user.display_name);
+                ((TextView) v.findViewById(R.id.name)).setText(user.display_name.toLowerCase());
                 // need to use app context here as the activity will be destroyed shortly
                 Glide.with(getApplicationContext())
                         .load(user.portrait_url)

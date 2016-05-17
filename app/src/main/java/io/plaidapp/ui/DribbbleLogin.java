@@ -49,7 +49,8 @@ import io.plaidapp.data.api.dribbble.DribbbleAuthService;
 import io.plaidapp.data.api.dribbble.model.AccessToken;
 import io.plaidapp.data.api.dribbble.model.User;
 import io.plaidapp.data.prefs.DribbblePrefs;
-import io.plaidapp.ui.transitions.FabDialogMorphSetup;
+import io.plaidapp.ui.transitions.FabTransform;
+import io.plaidapp.ui.transitions.MorphTransform;
 import io.plaidapp.util.ScrimUtil;
 import io.plaidapp.util.glide.CircleTransform;
 import retrofit2.Call;
@@ -60,26 +61,40 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class DribbbleLogin extends Activity {
 
+    private static final String STATE_LOGIN_FAILED = "loginFailed";
+
     boolean isDismissing = false;
+    boolean isLoginFailed = false;
     private ViewGroup container;
     private TextView message;
     private Button login;
     private ProgressBar loading;
     private DribbblePrefs dribbblePrefs;
+    private TextView loginFailed;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dribbble_login);
-        FabDialogMorphSetup.setupSharedEelementTransitions(this, container,
-                getResources().getDimensionPixelSize(R.dimen.dialog_corners));
 
         container = (ViewGroup) findViewById(R.id.container);
         message = (TextView) findViewById(R.id.login_message);
         login = (Button) findViewById(R.id.login);
         loading = (ProgressBar) findViewById(R.id.loading);
+        loginFailed = (TextView) container.findViewById(R.id.login_failed_message);
         loading.setVisibility(View.GONE);
         dribbblePrefs = DribbblePrefs.get(this);
+
+        if (!FabTransform.setup(this, container)) {
+            MorphTransform.setup(this, container,
+                    ContextCompat.getColor(this, R.color.background_light),
+                    getResources().getDimensionPixelSize(R.dimen.dialog_corners));
+        }
+
+        if (savedInstanceState != null) {
+            isLoginFailed = savedInstanceState.getBoolean(STATE_LOGIN_FAILED, false);
+            loginFailed.setVisibility(isLoginFailed ? View.VISIBLE : View.GONE);
+        }
 
         checkAuthCallback(getIntent());
     }
@@ -106,10 +121,17 @@ public class DribbbleLogin extends Activity {
         dismiss(null);
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle savedInstanceState) {
+        super.onSaveInstanceState(savedInstanceState);
+        savedInstanceState.putBoolean(STATE_LOGIN_FAILED, isLoginFailed);
+    }
+
     private void showLoading() {
         TransitionManager.beginDelayedTransition(container);
         message.setVisibility(View.GONE);
         login.setVisibility(View.GONE);
+        loginFailed.setVisibility(View.GONE);
         loading.setVisibility(View.VISIBLE);
     }
 
@@ -144,6 +166,11 @@ public class DribbbleLogin extends Activity {
         accessTokenCall.enqueue(new Callback<AccessToken>() {
             @Override
             public void onResponse(Call<AccessToken> call, Response<AccessToken> response) {
+                if (response.body() == null) {
+                    showLoginFailed();
+                    return;
+                }
+                isLoginFailed = false;
                 dribbblePrefs.setAccessToken(response.body().access_token);
                 showLoggedInUser();
                 setResult(Activity.RESULT_OK);
@@ -153,11 +180,15 @@ public class DribbbleLogin extends Activity {
             @Override
             public void onFailure(Call<AccessToken> call, Throwable t) {
                 Log.e(getClass().getCanonicalName(), t.getMessage(), t);
-                // TODO snackbar?
-                Toast.makeText(getApplicationContext(), "Login failed", Toast.LENGTH_LONG).show();
-                showLogin();
+                showLoginFailed();
             }
         });
+    }
+
+    private void showLoginFailed() {
+        isLoginFailed = true;
+        showLogin();
+        loginFailed.setVisibility(View.VISIBLE);
     }
 
     private void showLoggedInUser() {
@@ -170,7 +201,7 @@ public class DribbbleLogin extends Activity {
                 final Toast confirmLogin = new Toast(getApplicationContext());
                 final View v = LayoutInflater.from(DribbbleLogin.this).inflate(R.layout
                         .toast_logged_in_confirmation, null, false);
-                ((TextView) v.findViewById(R.id.name)).setText(user.name);
+                ((TextView) v.findViewById(R.id.name)).setText(user.name.toLowerCase());
                 // need to use app context here as the activity will be destroyed shortly
                 Glide.with(getApplicationContext())
                         .load(user.avatar_url)

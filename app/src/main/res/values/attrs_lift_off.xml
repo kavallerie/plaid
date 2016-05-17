@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Copyright 2015 Google Inc.
+  Copyright 2016 Google Inc.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -15,18 +15,10 @@
   limitations under the License.
   -->
 
-<transitionSet
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:interpolator="@android:interpolator/fast_out_slow_in"
-    android:transitionOrdering="together">
+<resources>
 
-    <changeBounds android:duration="300" />
-    <pathMotion
-        class="io.plaidapp.ui.transitions.GravityArcMotion"
-        android:maximumAngle="50" />
-    <transition
-        class="io.plaidapp.ui.transitions.LiftOff"
-        android:duration="400"
-        android:elevation="@dimen/touch_raise" />
+    <declare-styleable name="LiftOff">
+        <attr name="android:elevation" />
+    </declare-styleable>
 
-</transitionSet>
+</resources>

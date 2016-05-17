@@ -41,19 +41,19 @@ import com.bumptech.glide.Glide;
 import java.text.NumberFormat;
 import java.util.List;
 
-import butterknife.Bind;
 import butterknife.BindInt;
+import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import io.plaidapp.R;
-import io.plaidapp.data.PlaidItem;
 import io.plaidapp.data.api.dribbble.PlayerShotsDataManager;
 import io.plaidapp.data.api.dribbble.model.Shot;
 import io.plaidapp.data.api.dribbble.model.User;
 import io.plaidapp.data.pocket.PocketUtils;
 import io.plaidapp.data.prefs.DribbblePrefs;
 import io.plaidapp.ui.recyclerview.InfiniteScrollListener;
-import io.plaidapp.ui.transitions.FabDialogMorphSetup;
+import io.plaidapp.ui.recyclerview.SlideInItemAnimator;
+import io.plaidapp.ui.transitions.MorphTransform;
 import io.plaidapp.ui.widget.ElasticDragDismissFrameLayout;
 import io.plaidapp.util.DribbbleUtils;
 import io.plaidapp.util.ViewUtils;
@@ -81,17 +81,17 @@ public class PlayerActivity extends Activity {
     private Boolean following;
     private int followerCount;
 
-    @Bind(R.id.draggable_frame) ElasticDragDismissFrameLayout draggableFrame;
-    @Bind(R.id.player_description) ViewGroup playerDescription;
-    @Bind(R.id.avatar) ImageView avatar;
-    @Bind(R.id.player_name) TextView playerName;
-    @Bind(R.id.follow) Button follow;
-    @Bind(R.id.player_bio) TextView bio;
-    @Bind(R.id.shot_count) TextView shotCount;
-    @Bind(R.id.followers_count) TextView followersCount;
-    @Bind(R.id.likes_count) TextView likesCount;
-    @Bind(R.id.loading) ProgressBar loading;
-    @Bind(R.id.player_shots) RecyclerView shots;
+    @BindView(R.id.draggable_frame) ElasticDragDismissFrameLayout draggableFrame;
+    @BindView(R.id.player_description) ViewGroup playerDescription;
+    @BindView(R.id.avatar) ImageView avatar;
+    @BindView(R.id.player_name) TextView playerName;
+    @BindView(R.id.follow) Button follow;
+    @BindView(R.id.player_bio) TextView bio;
+    @BindView(R.id.shot_count) TextView shotCount;
+    @BindView(R.id.followers_count) TextView followersCount;
+    @BindView(R.id.likes_count) TextView likesCount;
+    @BindView(R.id.loading) ProgressBar loading;
+    @BindView(R.id.player_shots) RecyclerView shots;
     @BindInt(R.integer.num_columns) int columns;
 
     @Override
@@ -154,11 +154,17 @@ public class PlayerActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        dataManager.cancelLoading();
+        if (dataManager != null) {
+            dataManager.cancelLoading();
+        }
         super.onDestroy();
     }
 
     private void bindPlayer() {
+        if (player == null) {
+            return;
+        }
+
         final Resources res = getResources();
         final NumberFormat nf = NumberFormat.getInstance();
 
@@ -167,7 +173,7 @@ public class PlayerActivity extends Activity {
                 .placeholder(R.drawable.avatar_placeholder)
                 .transform(circleTransform)
                 .into(avatar);
-        playerName.setText(player.name);
+        playerName.setText(player.name.toLowerCase());
         if (!TextUtils.isEmpty(player.bio)) {
             DribbbleUtils.parseAndSetText(bio, player.bio);
         } else {
@@ -199,6 +205,7 @@ public class PlayerActivity extends Activity {
         };
         adapter = new FeedAdapter(this, dataManager, columns, PocketUtils.isPocketInstalled(this));
         shots.setAdapter(adapter);
+        shots.setItemAnimator(new SlideInItemAnimator());
         shots.setVisibility(View.VISIBLE);
         layoutManager = new GridLayoutManager(this, columns);
         layoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
@@ -335,9 +342,8 @@ public class PlayerActivity extends Activity {
             }
         } else {
             Intent login = new Intent(this, DribbbleLogin.class);
-            login.putExtra(FabDialogMorphSetup.EXTRA_SHARED_ELEMENT_START_COLOR,
-                    ContextCompat.getColor(this, R.color.dribbble));
-            login.putExtra(FabDialogMorphSetup.EXTRA_SHARED_ELEMENT_START_CORNER_RADIUS,
+            MorphTransform.addExtras(login,
+                    ContextCompat.getColor(this, R.color.dribbble),
                     getResources().getDimensionPixelSize(R.dimen.dialog_corners));
             ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation
                     (this, follow, getString(R.string.transition_dribbble_login));

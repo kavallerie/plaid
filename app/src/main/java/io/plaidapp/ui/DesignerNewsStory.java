@@ -47,7 +47,6 @@ import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.text.style.TextAppearanceSpan;
-import android.transition.ArcMotion;
 import android.transition.Transition;
 import android.util.TypedValue;
 import android.view.View;
@@ -70,9 +69,9 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import butterknife.Bind;
 import butterknife.BindDimen;
 import butterknife.BindInt;
+import butterknife.BindView;
 import butterknife.ButterKnife;
 import in.uncod.android.bypass.Bypass;
 import in.uncod.android.bypass.style.ImageLoadingSpan;
@@ -83,7 +82,8 @@ import io.plaidapp.data.api.designernews.model.Story;
 import io.plaidapp.data.api.designernews.model.StoryResponse;
 import io.plaidapp.data.prefs.DesignerNewsPrefs;
 import io.plaidapp.ui.drawable.ThreadedCommentDrawable;
-import io.plaidapp.ui.transitions.FabDialogMorphSetup;
+import io.plaidapp.ui.transitions.GravityArcMotion;
+import io.plaidapp.ui.transitions.MorphTransform;
 import io.plaidapp.ui.widget.AuthorTextView;
 import io.plaidapp.ui.widget.CollapsingTitleLayout;
 import io.plaidapp.ui.widget.ElasticDragDismissFrameLayout;
@@ -110,16 +110,16 @@ public class DesignerNewsStory extends Activity {
     private static final int RC_LOGIN_UPVOTE = 7;
 
     private View header;
-    @Bind(R.id.comments_list) RecyclerView commentsList;
+    @BindView(R.id.comments_list) RecyclerView commentsList;
     private LinearLayoutManager layoutManager;
     private DesignerNewsCommentsAdapter commentsAdapter;
-    @Bind(R.id.fab) ImageButton fab;
-    @Bind(R.id.fab_expand) View fabExpand;
-    @Bind(R.id.comments_container) ElasticDragDismissFrameLayout draggableFrame;
+    @BindView(R.id.fab) ImageButton fab;
+    @BindView(R.id.fab_expand) View fabExpand;
+    @BindView(R.id.comments_container) ElasticDragDismissFrameLayout draggableFrame;
     private ElasticDragDismissFrameLayout.SystemChromeFader chromeFader;
-    @Nullable @Bind(R.id.backdrop_toolbar) CollapsingTitleLayout collapsingToolbar;
-    @Nullable @Bind(R.id.story_title_background) PinnedOffsetView toolbarBackground;
-    private Button upvoteStory;
+    @Nullable @BindView(R.id.backdrop_toolbar) CollapsingTitleLayout collapsingToolbar;
+    @Nullable @BindView(R.id.story_title_background) PinnedOffsetView toolbarBackground;
+    private TextView upvoteStory;
     private EditText enterComment;
     private ImageButton postComment;
     @BindInt(R.integer.fab_expand_duration) int fabExpandDuration;
@@ -419,7 +419,7 @@ public class DesignerNewsStory extends Activity {
                 .setDuration(fabExpandDuration);
 
         // translate the placeholder ui back into position along an arc
-        ArcMotion arcMotion = new ArcMotion();
+        GravityArcMotion arcMotion = new GravityArcMotion();
         arcMotion.setMinimumVerticalAngle(70f);
         Path motionPath = arcMotion.getPath(translateX, translateY, 0, 0);
         Animator position = ObjectAnimator.ofFloat(fabExpand, View.TRANSLATION_X, View
@@ -462,7 +462,7 @@ public class DesignerNewsStory extends Activity {
             storyComment.setVisibility(View.GONE);
         }
 
-        upvoteStory = (Button) header.findViewById(R.id.story_vote_action);
+        upvoteStory = (TextView) header.findViewById(R.id.story_vote_action);
         upvoteStory.setText(getResources().getQuantityString(R.plurals.upvotes, story.vote_count,
                 NumberFormat.getInstance().format(story.vote_count)));
         upvoteStory.setOnClickListener(new View.OnClickListener() {
@@ -472,7 +472,7 @@ public class DesignerNewsStory extends Activity {
             }
         });
 
-        final Button share = (Button) header.findViewById(R.id.story_share_action);
+        final TextView share = (TextView) header.findViewById(R.id.story_share_action);
         share.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -486,13 +486,15 @@ public class DesignerNewsStory extends Activity {
         });
 
         TextView storyPosterTime = (TextView) header.findViewById(R.id.story_poster_time);
-        SpannableString poster = new SpannableString("–" + story.user_display_name);
+        SpannableString poster = new SpannableString(story.user_display_name.toLowerCase());
         poster.setSpan(new TextAppearanceSpan(this, R.style.TextAppearance_CommentAuthor),
                 0, poster.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        CharSequence job = !TextUtils.isEmpty(story.user_job) ? "\n" + story.user_job : "";
+        CharSequence job =
+                !TextUtils.isEmpty(story.user_job) ? "\n" + story.user_job.toLowerCase() : "";
         CharSequence timeAgo = DateUtils.getRelativeTimeSpanString(story.created_at.getTime(),
                 System.currentTimeMillis(),
-                DateUtils.SECOND_IN_MILLIS);
+                DateUtils.SECOND_IN_MILLIS)
+                .toString().toLowerCase();
         storyPosterTime.setText(TextUtils.concat(poster, job, "\n", timeAgo));
         ImageView avatar = (ImageView) header.findViewById(R.id.story_poster_avatar);
         if (!TextUtils.isEmpty(story.user_portrait_url)) {
@@ -582,8 +584,8 @@ public class DesignerNewsStory extends Activity {
     private void needsLogin(View triggeringView, int requestCode) {
         Intent login = new Intent(DesignerNewsStory.this,
                 DesignerNewsLogin.class);
-        login.putExtra(FabDialogMorphSetup.EXTRA_SHARED_ELEMENT_START_COLOR,
-                ContextCompat.getColor(DesignerNewsStory.this, R.color.background_light));
+        MorphTransform.addExtras(login, ContextCompat.getColor(this, R.color.background_light),
+                triggeringView.getHeight() / 2);
         ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation(
                 DesignerNewsStory.this,
                 triggeringView, getString(R.string.transition_designer_news_login));
@@ -813,13 +815,14 @@ public class DesignerNewsStory extends Activity {
                                 .into(new ImageSpanTarget(holder.comment, loadingSpan));
                     }
                 });
-                holder.author.setText(comment.user_display_name);
+                holder.author.setText(comment.user_display_name.toLowerCase());
                 holder.author.setOriginalPoster(isOP(comment.user_id));
                 if (comment.created_at != null) {
                     holder.timeAgo.setText(
                             DateUtils.getRelativeTimeSpanString(comment.created_at.getTime(),
                                     System.currentTimeMillis(),
-                                    DateUtils.SECOND_IN_MILLIS));
+                                    DateUtils.SECOND_IN_MILLIS)
+                                    .toString().toLowerCase());
                 }
                 // FIXME updating drawable doesn't seem to be working, just create a new one
                 //((ThreadedCommentDrawable) holder.threadDepth.getDrawable())
@@ -1011,10 +1014,10 @@ public class DesignerNewsStory extends Activity {
 
     /* package */ static class CommentHolder extends RecyclerView.ViewHolder {
 
-        @Bind(R.id.depth) ImageView threadDepth;
-        @Bind(R.id.comment_author) AuthorTextView author;
-        @Bind(R.id.comment_time_ago) TextView timeAgo;
-        @Bind(R.id.comment_text) TextView comment;
+        @BindView(R.id.depth) ImageView threadDepth;
+        @BindView(R.id.comment_author) AuthorTextView author;
+        @BindView(R.id.comment_time_ago) TextView timeAgo;
+        @BindView(R.id.comment_text) TextView comment;
 
         public CommentHolder(View itemView) {
             super(itemView);
@@ -1024,10 +1027,10 @@ public class DesignerNewsStory extends Activity {
 
     /* package */ static class CommentReplyHolder extends RecyclerView.ViewHolder {
 
-        @Bind(R.id.comment_votes) Button commentVotes;
-        @Bind(R.id.comment_reply_label) TextInputLayout replyLabel;
-        @Bind(R.id.comment_reply) EditText commentReply;
-        @Bind(R.id.post_reply) ImageButton postReply;
+        @BindView(R.id.comment_votes) Button commentVotes;
+        @BindView(R.id.comment_reply_label) TextInputLayout replyLabel;
+        @BindView(R.id.comment_reply) EditText commentReply;
+        @BindView(R.id.post_reply) ImageButton postReply;
 
         public CommentReplyHolder(View itemView) {
             super(itemView);
